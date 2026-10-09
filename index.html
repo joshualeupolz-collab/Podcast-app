@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101317">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Podcasts</title>
+<style>
+:root{
+  --bg:#101317; --panel:#181d23; --panel2:#212831; --text:#eef1f5; --muted:#8f9aa8;
+  --accent:#ff7a3d; --accent-ink:#1a0d05; --line:#2a323c; --ok:#5fcf8a;
+  --nav-h:56px; --mini-h:64px;
+}
+@media (prefers-color-scheme: light){
+  :root{ --bg:#f4f5f7; --panel:#ffffff; --panel2:#eceef2; --text:#14181d; --muted:#667180; --line:#dde1e7; --accent-ink:#fff; --accent:#e5581a; }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,select{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer;padding:0}
+img{display:block}
+main{padding:16px 16px calc(var(--nav-h) + var(--mini-h) + 24px + env(safe-area-inset-bottom));max-width:720px;margin:0 auto}
+main.nomini{padding-bottom:calc(var(--nav-h) + 24px + env(safe-area-inset-bottom))}
+h1{font-size:1.5rem;margin:4px 0 14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+h2{font-size:1rem;margin:22px 0 8px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+.btn{background:var(--panel2);padding:9px 14px;border-radius:10px;font-weight:600}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:#ff6b6b}
+.icon-btn{width:40px;height:40px;border-radius:50%;display:inline-grid;place-items:center;background:var(--panel2);font-size:1.1rem;flex:none}
+.icon-btn.big{width:64px;height:64px;background:var(--accent);color:var(--accent-ink);font-size:1.6rem}
+ul{list-style:none;margin:0;padding:0}
+/* Episoden */
+.ep{display:flex;gap:12px;padding:12px;background:var(--panel);border-radius:14px;margin-bottom:10px;align-items:flex-start}
+.ep.done{opacity:.55}
+.ep img,.cover{width:56px;height:56px;border-radius:10px;object-fit:cover;background:var(--panel2);flex:none}
+.ep .meta{flex:1;min-width:0}
+.ep .title{font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ep .sub{font-size:.82rem;color:var(--muted);margin-top:2px}
+.bar{height:3px;background:var(--panel2);border-radius:3px;margin-top:8px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--accent)}
+.ep .acts{display:flex;flex-direction:column;gap:6px}
+.ep .acts .icon-btn{width:36px;height:36px;font-size:1rem}
+.ep .acts .icon-btn.on{background:var(--ok);color:#06210f}
+.desc{font-size:.85rem;color:var(--muted);margin-top:6px;display:none}
+.ep.open .desc{display:block}
+/* Abos */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:14px}
+.card{text-align:left}
+.card img{width:100%;aspect-ratio:1;border-radius:14px;object-fit:cover;background:var(--panel2)}
+.card .t{font-weight:600;margin-top:6px;font-size:.92rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* Formulare */
+.field{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;outline:none}
+.field:focus{border-color:var(--accent)}
+.row{display:flex;gap:8px;align-items:center}
+.row>.field{flex:1}
+.list-item{display:flex;gap:12px;align-items:center;background:var(--panel);padding:10px;border-radius:14px;margin-bottom:10px}
+.list-item .meta{flex:1;min-width:0}
+.list-item .title{font-weight:600}
+.setting{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.setting input[type=checkbox]{width:22px;height:22px;accent-color:var(--accent)}
+.hero{display:flex;gap:14px;align-items:center;margin-bottom:12px}
+.hero .cover{width:84px;height:84px;border-radius:14px}
+/* Navigation */
+nav{position:fixed;left:0;right:0;bottom:0;height:calc(var(--nav-h) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:var(--panel);border-top:1px solid var(--line);display:flex;z-index:20}
+nav button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:.72rem;color:var(--muted)}
+nav button span{font-size:1.25rem;line-height:1}
+nav button.active{color:var(--accent)}
+/* Mini-Player */
+#mini{position:fixed;left:8px;right:8px;bottom:calc(var(--nav-h) + 8px + env(safe-area-inset-bottom));height:var(--mini-h);background:var(--panel2);border-radius:16px;display:flex;align-items:center;gap:10px;padding:8px 10px;z-index:19;box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:704px;margin:0 auto}
+#mini[hidden]{display:none}
+#mini img{width:46px;height:46px;border-radius:9px;object-fit:cover;background:var(--panel)}
+#mini .meta{flex:1;min-width:0;cursor:pointer}
+#mini .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mini .s{font-size:.78rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mini .prog{position:absolute;left:12px;right:12px;bottom:3px;height:2px;background:transparent}
+#mini .prog i{display:block;height:100%;background:var(--accent);width:0}
+/* Voller Player */
+#sheet{position:fixed;inset:0;background:var(--bg);z-index:30;overflow-y:auto;padding:16px 20px calc(24px + env(safe-area-inset-bottom))}
+#sheet[hidden]{display:none}
+#sheet .inner{max-width:520px;margin:0 auto}
+#sheet .top{display:flex;justify-content:space-between;align-items:center}
+#sheet .art{width:min(76vw,320px);aspect-ratio:1;border-radius:20px;object-fit:cover;margin:18px auto 18px;background:var(--panel2);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+#sheet .ttl{font-size:1.15rem;font-weight:700;text-align:center}
+#sheet .pod{color:var(--muted);text-align:center;margin-top:2px}
+#seek{width:100%;margin:18px 0 2px;accent-color:var(--accent)}
+.times{display:flex;justify-content:space-between;color:var(--muted);font-size:.82rem;font-variant-numeric:tabular-nums}
+.controls{display:flex;justify-content:center;align-items:center;gap:18px;margin:14px 0}
+.skip{width:56px;height:56px;border-radius:50%;background:var(--panel2);font-weight:700;font-size:.9rem}
+.opts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:6px 0 4px}
+.opts select{background:var(--panel2);border:0;border-radius:10px;padding:9px 12px}
+/* Toast */
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + var(--mini-h) + 24px + env(safe-area-inset-bottom));background:#000c;color:#fff;padding:10px 16px;border-radius:12px;font-size:.9rem;z-index:50;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+.empty{text-align:center;color:var(--muted);padding:40px 12px}
+</style>
+</head>
+<body>
+<main id="main"></main>
+
+<div id="mini" hidden>
+  <img id="miniImg" alt="">
+  <div class="meta" id="miniMeta"><div class="t" id="miniT"></div><div class="s" id="miniS"></div></div>
+  <button class="icon-btn" data-act="back15" aria-label="15 Sekunden zurück">↺</button>
+  <button class="icon-btn" data-act="toggle" id="miniPlay" aria-label="Abspielen/Pause">▶</button>
+  <div class="prog"><i id="miniProg"></i></div>
+</div>
+
+<div id="sheet" hidden>
+  <div class="inner">
+    <div class="top">
+      <button class="icon-btn" data-act="closeSheet" aria-label="Schließen">⌄</button>
+      <span class="muted small">Wiedergabe</span>
+      <span style="width:40px"></span>
+    </div>
+    <img class="art" id="sheetImg" alt="">
+    <div class="ttl" id="sheetT"></div>
+    <div class="pod" id="sheetS"></div>
+    <input type="range" id="seek" min="0" max="0" step="1" value="0" aria-label="Position">
+    <div class="times"><span id="tCur">0:00</span><span id="tLeft">-0:00</span></div>
+    <div class="controls">
+      <button class="skip" data-act="back15">−15</button>
+      <button class="icon-btn big" data-act="toggle" id="bigPlay" aria-label="Abspielen/Pause">▶</button>
+      <button class="skip" data-act="fwd30">+30</button>
+    </div>
+    <div class="opts">
+      <select id="speed" aria-label="Geschwindigkeit">
+        <option value="0.8">0,8×</option><option value="1">1×</option><option value="1.1">1,1×</option>
+        <option value="1.25">1,25×</option><option value="1.5">1,5×</option><option value="1.75">1,75×</option><option value="2">2×</option>
+      </select>
+      <select id="sleep" aria-label="Sleep-Timer">
+        <option value="0">Sleep-Timer: aus</option><option value="15">15 Min.</option><option value="30">30 Min.</option>
+        <option value="45">45 Min.</option><option value="60">60 Min.</option>
+      </select>
+      <button class="btn" data-act="next">Nächste ⏭</button>
+    </div>
+    <h2>Warteschlange</h2>
+    <div id="queueBox"></div>
+  </div>
+</div>
+
+<nav id="nav">
+  <button data-tab="new"><span>✦</span>Neu</button>
+  <button data-tab="subs"><span>▤</span>Abos</button>
+  <button data-tab="search"><span>⌕</span>Suche</button>
+  <button data-tab="settings"><span>⚙</span>Mehr</button>
+</nav>
+<div id="toast"></div>
+<audio id="audio" preload="metadata"></audio>
+
+<script>
+'use strict';
+/* ============ Hilfsfunktionen ============ */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { console.warn('Speichern fehlgeschlagen', e); } },
+  del(k) { try { localStorage.removeItem(k); } catch {} }
+};
+const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(36); };
+const fmt = sec => {
+  sec = Math.max(0, Math.floor(sec || 0));
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
+};
+const fmtDate = ms => ms ? new Date(ms).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+/* ============ Zustand ============ */
+let subs     = store.get('pc_subs', []);       // [{id, feedUrl, title, author, image}]
+let progress = store.get('pc_progress', {});   // key -> {pos, dur, done}
+let queue    = store.get('pc_queue', []);      // [Episode]
+let current  = store.get('pc_current', null);  // Episode | null
+let settings = Object.assign({ speed: 1, queueAuto: true, proxy: 'https://api.allorigins.win/raw?url=' }, store.get('pc_settings', {}));
+let view = { name: 'new' };                    // new | subs | search | settings | podcast
+let episodes = new Map();                      // key -> Episode (aus dem Cache)
+let searchResults = [];
+
+const saveSubs = () => store.set('pc_subs', subs);
+const saveProgress = () => store.set('pc_progress', progress);
+const saveQueue = () => store.set('pc_queue', queue);
+const saveSettings = () => store.set('pc_settings', settings);
+
+function loadCaches() {
+  episodes = new Map();
+  for (const s of subs) {
+    const c = store.get('pc_eps_' + s.id, null);
+    if (c && c.eps) for (const e of c.eps) episodes.set(e.key, e);
+  }
+  for (const e of queue) if (!episodes.has(e.key)) episodes.set(e.key, e);
+  if (current && !episodes.has(current.key)) episodes.set(current.key, current);
+}
+const subEpisodes = id => (store.get('pc_eps_' + id, { eps: [] }).eps || []);
+
+/* ============ Feeds laden & parsen ============ */
+async function fetchText(url) {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.text();
+  } catch (e) {
+    if (!settings.proxy) throw e;                       // kein Proxy konfiguriert
+    const r = await fetch(settings.proxy + encodeURIComponent(url));
+    if (!r.ok) throw new Error('Proxy HTTP ' + r.status);
+    return await r.text();
+  }
+}
+const childText = (el, name) => { for (const c of el.children) if (c.localName === name && c.textContent.trim()) return c.textContent.trim(); return ''; };
+const childAttr = (el, name, a) => { for (const c of el.children) if (c.localName === name && c.getAttribute(a)) return c.getAttribute(a); return ''; };
+const htmlToText = h => { try { return (new DOMParser().parseFromString(h, 'text/html').body.textContent || '').replace(/\s+/g, ' ').trim(); } catch { return ''; } };
+function parseDuration(v) {
+  if (!v) return 0;
+  if (/^\d+$/.test(v)) return parseInt(v, 10);
+  const p = v.split(':').map(Number);
+  if (p.some(isNaN)) return 0;
+  return p.reduce((a, n) => a * 60 + n, 0);
+}
+function parseFeed(xml) {
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  if (doc.querySelector('parsererror')) throw new Error('Kein gültiger Feed');
+  const ch = doc.getElementsByTagName('channel')[0];
+  if (!ch) throw new Error('Kein RSS-Feed gefunden');
+  let image = childAttr(ch, 'image', 'href');
+  if (!image) { const im = [...ch.children].find(c => c.localName === 'image'); if (im) image = childText(im, 'url'); }
+  const feed = { title: childText(ch, 'title') || 'Unbekannt', author: childText(ch, 'author'), image, eps: [] };
+  for (const it of [...ch.getElementsByTagName('item')].slice(0, 80)) {
+    const audio = childAttr(it, 'enclosure', 'url');
+    if (!audio) continue;
+    const guid = childText(it, 'guid');
+    feed.eps.push({
+      key: hash((guid || audio) + '|' + feed.title),
+      title: childText(it, 'title') || 'Ohne Titel',
+      date: Date.parse(childText(it, 'pubDate')) || 0,
+      audio,
+      dur: parseDuration(childText(it, 'duration')),
+      desc: htmlToText(childText(it, 'description') || childText(it, 'summary')).slice(0, 400),
+      image: childAttr(it, 'image', 'href')
+    });
+  }
+  return feed;
+}
+function cacheFeed(sub, feed) {
+  const eps = feed.eps.map(e => ({ ...e, pid: sub.id, podcast: sub.title, image: e.image || sub.image }));
+  store.set('pc_eps_' + sub.id, { t: Date.now(), eps });
+}
+async function subscribe(feedUrl) {
+  feedUrl = feedUrl.trim();
+  const id = hash(feedUrl);
+  if (subs.some(s => s.id === id)) { toast('Schon abonniert'); return; }
+  toast('Lade Feed …');
+  try {
+    const feed = parseFeed(await fetchText(feedUrl));
+    const sub = { id, feedUrl, title: feed.title, author: feed.author, image: feed.image };
+    subs.push(sub); saveSubs(); cacheFeed(sub, feed); loadCaches();
+    toast('Abonniert: ' + sub.title);
+    render();
+  } catch (e) { toast('Fehler: ' + e.message); }
+}
+async function refreshAll(force) {
+  const stale = s => force || Date.now() - (store.get('pc_eps_' + s.id, { t: 0 }).t || 0) > 30 * 60 * 1000;
+  const todo = subs.filter(stale);
+  if (!todo.length) return;
+  const res = await Promise.allSettled(todo.map(async s => {
+    const feed = parseFeed(await fetchText(s.feedUrl));
+    cacheFeed(s, feed);
+  }));
+  loadCaches();
+  const failed = res.filter(r => r.status === 'rejected').length;
+  if (failed) toast(`${failed} Feed(s) konnten nicht geladen werden`);
+  render();
+}
+
+/* ============ Ansichten ============ */
+function epRow(e, showPodcast = true) {
+  const p = progress[e.key] || {};
+  const dur = p.dur || e.dur || 0;
+  const pct = dur && p.pos ? Math.min(100, Math.round(p.pos / dur * 100)) : 0;
+  const queued = queue.some(q => q.key === e.key);
+  const left = p.pos && dur && !p.done ? `${fmt(dur - p.pos)} übrig` : (dur ? fmt(dur) : '');
+  return `<li class="ep ${p.done ? 'done' : ''}" data-key="${esc(e.key)}">
+    <img src="${esc(e.image || '')}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+    <div class="meta" data-act="expand">
+      <div class="title">${esc(e.title)}</div>
+      <div class="sub">${showPodcast ? esc(e.podcast) + ' · ' : ''}${fmtDate(e.date)}${left ? ' · ' + left : ''}</div>
+      ${pct ? `<div class="bar"><i style="width:${pct}%"></i></div>` : ''}
+      <div class="desc">${esc(e.desc)}</div>
+    </div>
+    <div class="acts">
+      <button class="icon-btn" data-act="play" aria-label="Abspielen">▶</button>
+      <button class="icon-btn ${queued ? 'on' : ''}" data-act="queue" aria-label="Warteschlange">${queued ? '✓' : '＋'}</button>
+    </div>
+  </li>`;
+}
+function renderNew() {
+  const all = [...episodes.values()].filter(e => e.pid).sort((a, b) => b.date - a.date);
+  const hideDone = all.filter(e => !(progress[e.key] || {}).done).slice(0, 60);
+  return `<h1>Neu <button class="btn" data-act="refresh">↻ Aktualisieren</button></h1>` +
+    (!subs.length ? `<div class="empty">Noch keine Podcasts abonniert.<br><br><button class="btn primary" data-tab="search">Podcast suchen</button></div>`
+      : hideDone.length ? `<ul>${hideDone.map(e => epRow(e)).join('')}</ul>`
+      : `<div class="empty">Alles gehört. 🎉</div>`);
+}
+function renderSubs() {
+  return `<h1>Abos</h1>` + (subs.length
+    ? `<div class="grid">${subs.map(s => `<button class="card" data-act="openPod" data-id="${esc(s.id)}">
+        <img src="${esc(s.image || '')}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><div class="t">${esc(s.title)}</div></button>`).join('')}</div>`
+    : `<div class="empty">Keine Abos. Über „Suche“ findest du Podcasts oder du fügst direkt eine Feed-URL ein.</div>`);
+}
+function renderPodcast() {
+  const s = subs.find(x => x.id === view.id);
+  if (!s) return renderSubs();
+  const eps = subEpisodes(s.id).slice().sort((a, b) => b.date - a.date);
+  return `<div class="row" style="margin-bottom:8px"><button class="btn" data-tab="subs">‹ Abos</button></div>
+    <div class="hero"><img class="cover" src="${esc(s.image || '')}" alt="" onerror="this.style.visibility='hidden'">
+      <div><div style="font-weight:700;font-size:1.15rem">${esc(s.title)}</div><div class="muted small">${esc(s.author || '')}</div></div></div>
+    <div class="row" style="margin-bottom:14px">
+      <button class="btn" data-act="markAll" data-id="${esc(s.id)}">Alle als gehört</button>
+      <button class="btn danger" data-act="unsub" data-id="${esc(s.id)}">Deabonnieren</button>
+    </div>
+    <ul>${eps.map(e => epRow(e, false)).join('')}</ul>`;
+}
+function renderSearch() {
+  return `<h1>Suche</h1>
+    <form id="searchForm" class="row">
+      <input class="field" id="q" type="search" placeholder="Podcast suchen oder Feed-URL einfügen" autocomplete="off" autocapitalize="off">
+      <button class="btn primary" type="submit">Los</button>
+    </form>
+    <div id="results" style="margin-top:14px">${searchResultsHtml()}</div>`;
+}
+function searchResultsHtml() {
+  return searchResults.map((r, i) => `<div class="list-item">
+    <img class="cover" src="${esc(r.image)}" alt="" loading="lazy">
+    <div class="meta"><div class="title">${esc(r.title)}</div><div class="muted small">${esc(r.author)}</div></div>
+    <button class="btn ${subs.some(s => s.id === hash(r.feedUrl)) ? '' : 'primary'}" data-act="subRes" data-i="${i}">${subs.some(s => s.id === hash(r.feedUrl)) ? '✓' : 'Abo'}</button>
+  </div>`).join('');
+}
+async function doSearch(term) {
+  term = term.trim(); if (!term) return;
+  if (/^https?:\/\//i.test(term)) { await subscribe(term); return; }
+  $('#results').innerHTML = '<div class="empty">Suche …</div>';
+  try {
+    const r = await fetch('https://itunes.apple.com/search?media=podcast&limit=25&country=DE&term=' + encodeURIComponent(term));
+    const j = await r.json();
+    searchResults = (j.results || []).filter(x => x.feedUrl).map(x => ({ feedUrl: x.feedUrl, title: x.collectionName, author: x.artistName, image: x.artworkUrl100 || x.artworkUrl600 || '' }));
+    $('#results').innerHTML = searchResults.length ? searchResultsHtml() : '<div class="empty">Nichts gefunden.</div>';
+  } catch (e) { $('#results').innerHTML = `<div class="empty">Suche fehlgeschlagen (${esc(e.message)}).<br>Du kannst auch direkt eine Feed-URL einfügen.</div>`; }
+}
+function renderSettings() {
+  return `<h1>Mehr</h1>
+    <div class="setting"><div><div>Warteschlange automatisch weiterspielen</div><div class="muted small">Es läuft nie etwas, das du nicht selbst eingereiht hast.</div></div>
+      <input type="checkbox" data-set="queueAuto" ${settings.queueAuto ? 'checked' : ''}></div>
+    <div style="padding:12px 0;border-bottom:1px solid var(--line)">
+      <div>CORS-Proxy für Feeds</div>
+      <div class="muted small" style="margin:2px 0 8px">Wird nur genutzt, wenn der Browser einen Feed nicht direkt laden darf. Leer lassen = nie ein Proxy. Format: Proxy-URL, an die die Feed-URL (kodiert) angehängt wird.</div>
+      <input class="field" data-set="proxy" value="${esc(settings.proxy)}" placeholder="https://mein-server/proxy?url=">
+    </div>
+    <h2>Backup</h2>
+    <div class="row">
+      <button class="btn" data-act="export">Exportieren</button>
+      <button class="btn" data-act="import">Importieren</button>
+      <input type="file" id="importFile" accept="application/json" hidden>
+    </div>
+    <p class="muted small">Alles liegt nur in diesem Browser (localStorage). Exportiere ab und zu ein Backup.</p>`;
+}
+function render() {
+  const main = $('#main');
+  main.className = current ? '' : 'nomini';
+  const v = view.name;
+  main.innerHTML = v === 'new' ? renderNew() : v === 'subs' ? renderSubs() : v === 'podcast' ? renderPodcast() : v === 'search' ? renderSearch() : renderSettings();
+  const tab = v === 'podcast' ? 'subs' : v;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+}
+function go(name, extra = {}) { view = { name, ...extra }; render(); window.scrollTo(0, 0); }
+
+/* ============ Player ============ */
+const audio = $('#audio');
+let lastSave = 0, seeking = false, sleepTimer = null;
+
+function setCurrent(ep) { current = ep; store.set('pc_current', ep); episodes.set(ep.key, ep); }
+function loadSrc(ep, autoplay) {
+  setCurrent(ep);
+  audio.src = ep.audio;
+  audio.playbackRate = settings.speed;
+  const p = progress[ep.key];
+  audio.addEventListener('loadedmetadata', () => {
+    if (p && !p.done && p.pos > 5) audio.currentTime = Math.max(0, p.pos - 2);
+    if (audio.duration && isFinite(audio.duration)) { progress[ep.key] = { ...(progress[ep.key] || {}), dur: Math.floor(audio.duration) }; }
+    updateUI();
+  }, { once: true });
+  if (p && p.done) { progress[ep.key] = { ...p, done: false, pos: 0 }; saveProgress(); }
+  setMediaSession(ep);
+  if (autoplay) audio.play().catch(e => toast('Konnte nicht abspielen: ' + e.message));
+  render(); updateUI();
+}
+function playEpisode(ep) {
+  if (current && current.key === ep.key) { toggle(); return; }
+  saveNow();
+  loadSrc(ep, true);
+}
+function toggle() { if (!current) return; audio.paused ? audio.play().catch(e => toast(e.message)) : audio.pause(); }
+function seekBy(d) { if (current) audio.currentTime = Math.max(0, Math.min((audio.duration || 1e9), audio.currentTime + d)); }
+function saveNow() {
+  if (!current) return;
+  const dur = audio.duration && isFinite(audio.duration) ? Math.floor(audio.duration) : (progress[current.key] || {}).dur || current.dur || 0;
+  const pos = Math.floor(audio.currentTime || 0);
+  const prev = progress[current.key] || {};
+  progress[current.key] = { pos, dur, done: prev.done || (dur > 0 && dur - pos < 20) };
+  saveProgress(); lastSave = Date.now();
+}
+function playNextInQueue() {
+  const next = queue.shift(); saveQueue();
+  if (next) loadSrc(next, true); else { render(); updateUI(); }
+  renderQueue();
+}
+function enqueue(ep) {
+  const i = queue.findIndex(q => q.key === ep.key);
+  if (i >= 0) { queue.splice(i, 1); toast('Aus Warteschlange entfernt'); }
+  else { queue.push(ep); toast('In die Warteschlange gelegt'); }
+  saveQueue(); renderQueue(); render();
+}
+function renderQueue() {
+  $('#queueBox').innerHTML = queue.length
+    ? `<ul>${queue.map(e => `<li class="list-item" data-key="${esc(e.key)}"><img class="cover" src="${esc(e.image || '')}" alt="" onerror="this.style.visibility='hidden'">
+        <div class="meta"><div class="title">${esc(e.title)}</div><div class="muted small">${esc(e.podcast || '')}</div></div>
+        <button class="icon-btn" data-act="qplay">▶</button><button class="icon-btn" data-act="qdel">✕</button></li>`).join('')}</ul>`
+    : '<div class="muted small" style="text-align:center">Leer – es läuft nichts automatisch weiter.</div>';
+}
+function updateUI() {
+  const mini = $('#mini');
+  mini.hidden = !current;
+  if (!current) return;
+  const cur = audio.currentTime || 0;
+  const dur = audio.duration && isFinite(audio.duration) ? audio.duration : (progress[current.key] || {}).dur || current.dur || 0;
+  $('#miniImg').src = current.image || ''; $('#sheetImg').src = current.image || '';
+  $('#miniT').textContent = $('#sheetT').textContent = current.title;
+  $('#miniS').textContent = $('#sheetS').textContent = current.podcast || '';
+  const icon = audio.paused ? '▶' : '❚❚';
+  $('#miniPlay').textContent = icon; $('#bigPlay').textContent = icon;
+  $('#miniProg').style.width = dur ? (cur / dur * 100) + '%' : '0';
+  if (!seeking) { $('#seek').max = Math.floor(dur); $('#seek').value = Math.floor(cur); }
+  $('#tCur').textContent = fmt(cur);
+  $('#tLeft').textContent = '-' + fmt(Math.max(0, dur - cur));
+  $('#speed').value = String(settings.speed);
+}
+function setMediaSession(ep) {
+  if (!('mediaSession' in navigator)) return;
+  navigator.mediaSession.metadata = new MediaMetadata({ title: ep.title, artist: ep.podcast || '', artwork: ep.image ? [{ src: ep.image }] : [] });
+  const h = (a, f) => { try { navigator.mediaSession.setActionHandler(a, f); } catch {} };
+  h('play', () => audio.play()); h('pause', () => audio.pause());
+  h('seekbackward', () => seekBy(-15)); h('seekforward', () => seekBy(30));
+  h('previoustrack', () => seekBy(-15)); h('nexttrack', () => playNextInQueue());
+  h('seekto', d => { audio.currentTime = d.seekTime; });
+}
+audio.addEventListener('timeupdate', () => { updateUI(); if (Date.now() - lastSave > 5000 && !audio.paused) saveNow(); });
+audio.addEventListener('play', updateUI);
+audio.addEventListener('pause', () => { saveNow(); updateUI(); });
+audio.addEventListener('ended', () => {
+  if (current) { progress[current.key] = { ...(progress[current.key] || {}), pos: 0, done: true }; saveProgress(); }
+  if (settings.queueAuto && queue.length) playNextInQueue(); else { render(); updateUI(); }
+});
+audio.addEventListener('error', () => { if (current) toast('Audio konnte nicht geladen werden'); });
+window.addEventListener('pagehide', saveNow);
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
+
+$('#seek').addEventListener('input', e => { seeking = true; $('#tCur').textContent = fmt(e.target.value); });
+$('#seek').addEventListener('change', e => { audio.currentTime = Number(e.target.value); seeking = false; });
+$('#speed').addEventListener('change', e => { settings.speed = Number(e.target.value); audio.playbackRate = settings.speed; saveSettings(); });
+$('#sleep').addEventListener('change', e => {
+  clearTimeout(sleepTimer); const m = Number(e.target.value);
+  if (m) { sleepTimer = setTimeout(() => { audio.pause(); $('#sleep').value = '0'; toast('Sleep-Timer: pausiert'); }, m * 60000); toast(`Pause in ${m} Minuten`); }
+});
+
+/* ============ Events ============ */
+const epOf = el => { const li = el.closest('[data-key]'); return li ? episodes.get(li.dataset.key) : null; };
+document.addEventListener('click', e => {
+  const tab = e.target.closest('[data-tab]');
+  if (tab) { go(tab.dataset.tab); return; }
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act;
+  switch (act) {
+    case 'play': { const ep = epOf(b); if (ep) playEpisode(ep); break; }
+    case 'queue': { const ep = epOf(b); if (ep) enqueue(ep); break; }
+    case 'expand': b.closest('.ep').classList.toggle('open'); break;
+    case 'toggle': toggle(); break;
+    case 'back15': seekBy(-15); break;
+    case 'fwd30': seekBy(30); break;
+    case 'next': playNextInQueue(); break;
+    case 'refresh': toast('Aktualisiere …'); refreshAll(true); break;
+    case 'openPod': go('podcast', { id: b.dataset.id }); break;
+    case 'unsub': {
+      const s = subs.find(x => x.id === b.dataset.id);
+      if (s && confirm(`„${s.title}“ deabonnieren?`)) { subs = subs.filter(x => x.id !== s.id); saveSubs(); store.del('pc_eps_' + s.id); loadCaches(); go('subs'); }
+      break;
+    }
+    case 'markAll': { for (const ep of subEpisodes(b.dataset.id)) progress[ep.key] = { ...(progress[ep.key] || {}), done: true }; saveProgress(); render(); toast('Alle als gehört markiert'); break; }
+    case 'subRes': { const r = searchResults[Number(b.dataset.i)]; if (r) subscribe(r.feedUrl).then(() => { const rs = $('#results'); if (rs && view.name === 'search') rs.innerHTML = searchResultsHtml(); }); break; }
+    case 'qplay': { const ep = epOf(b); if (ep) { queue = queue.filter(q => q.key !== ep.key); saveQueue(); saveNow(); loadSrc(ep, true); renderQueue(); } break; }
+    case 'qdel': { const ep = epOf(b); if (ep) { queue = queue.filter(q => q.key !== ep.key); saveQueue(); renderQueue(); render(); } break; }
+    case 'closeSheet': $('#sheet').hidden = true; break;
+    case 'export': {
+      const data = JSON.stringify({ v: 1, subs, progress, queue, settings }, null, 1);
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+      a.download = 'podcast-backup-' + new Date().toISOString().slice(0, 10) + '.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      break;
+    }
+    case 'import': $('#importFile').click(); break;
+  }
+});
+$('#miniMeta').addEventListener('click', () => { renderQueue(); $('#sheet').hidden = false; updateUI(); });
+document.addEventListener('submit', e => { if (e.target.id === 'searchForm') { e.preventDefault(); doSearch($('#q').value); } });
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'importFile' && t.files[0]) {
+    t.files[0].text().then(txt => {
+      const d = JSON.parse(txt);
+      subs = d.subs || []; progress = d.progress || {}; queue = d.queue || []; Object.assign(settings, d.settings || {});
+      saveSubs(); saveProgress(); saveQueue(); saveSettings();
+      toast('Backup geladen – lade Feeds …'); loadCaches(); render(); refreshAll(true);
+    }).catch(() => toast('Backup konnte nicht gelesen werden'));
+  } else if (t.dataset && t.dataset.set === 'queueAuto') { settings.queueAuto = t.checked; saveSettings(); }
+  else if (t.dataset && t.dataset.set === 'proxy') { settings.proxy = t.value.trim(); saveSettings(); toast('Gespeichert'); }
+});
+
+/* ============ Start ============ */
+loadCaches();
+if (current) { loadSrc(current, false); }
+render(); updateUI();
+refreshAll(false);
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
