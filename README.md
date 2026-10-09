@@ -8,6 +8,9 @@ Eine schlichte, werbefreie Podcast-App als PWA. Eine einzige `index.html`, kein 
 - Abos, „Neu“-Liste über alle Abos, Folgenbeschreibung per Antippen
 - Fortschritt pro Folge wird gespeichert, Wiedergabe setzt dort fort
 - Warteschlange: **läuft nie etwas automatisch weiter, das du nicht selbst eingereiht hast**
+  - zeigt das Erscheinungsdatum jeder Folge
+  - Umsortieren jederzeit per Ziehen am ≡-Griff, „⤒“ setzt eine Folge direkt an die erste Stelle, „Älteste zuerst“ sortiert nach Datum
+- Pro Folge (Titel antippen): als gehört/ungehört markieren, „Zurücksetzen & neu laden“ (setzt den Fortschritt zurück und lädt die Datei beim nächsten Abspielen frisch vom Server), Länge laut Feed vs. tatsächliche Länge
 - −15 s / +30 s, Geschwindigkeit, Sleep-Timer
 - Sperrbildschirm-Steuerung (Media Session API)
 - Backup als JSON (Export/Import)

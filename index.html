@@ -98,6 +98,17 @@ nav button.active{color:var(--accent)}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + var(--mini-h) + 24px + env(safe-area-inset-bottom));background:#000c;color:#fff;padding:10px 16px;border-radius:12px;font-size:.9rem;z-index:50;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}
 #toast.show{opacity:1}
 .empty{text-align:center;color:var(--muted);padding:40px 12px}
+/* Warteschlange */
+.qrow{display:flex;gap:8px;align-items:center;background:var(--panel);padding:8px 8px 8px 2px;border-radius:14px;margin-bottom:8px;touch-action:pan-y}
+.qrow .meta{flex:1;min-width:0}
+.qrow .title{font-weight:600;font-size:.92rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.qrow.dragging{box-shadow:0 8px 24px rgba(0,0,0,.45);position:relative;z-index:5;background:var(--panel2)}
+.handle{width:36px;height:44px;font-size:1.3rem;color:var(--muted);touch-action:none;cursor:grab;flex:none;user-select:none;-webkit-user-select:none}
+.icon-btn.sm{width:34px;height:34px;font-size:.95rem}
+.more{display:none;margin-top:10px}
+.ep.open .more{display:block}
+.more .row{flex-wrap:wrap;margin-top:8px}
+.more .btn{padding:7px 11px;font-size:.85rem}
 </style>
 </head>
 <body>
@@ -139,8 +150,11 @@ nav button.active{color:var(--accent)}
       </select>
       <button class="btn" data-act="next">Nächste ⏭</button>
     </div>
-    <h2>Warteschlange</h2>
-    <div id="queueBox"></div>
+    <div class="row" style="justify-content:space-between;margin-top:22px">
+      <h2 style="margin:0">Warteschlange</h2>
+      <button class="btn" data-act="qsort">Älteste zuerst</button>
+    </div>
+    <div id="queueBox" style="margin-top:10px"></div>
   </div>
 </div>
 
@@ -281,6 +295,16 @@ async function refreshAll(force) {
 }
 
 /* ============ Ansichten ============ */
+function lengthInfo(e, p) {
+  const feedLen = e.dur || 0, real = p.dur || 0;
+  const parts = [];
+  if (real && feedLen && Math.abs(real - feedLen) > 20)
+    parts.push(`Länge laut Feed: ${fmt(feedLen)} · tatsächlich: ${fmt(real)} (${fmt(Math.abs(real - feedLen))} ${real > feedLen ? 'mehr' : 'weniger'})`);
+  else if (real) parts.push(`Länge: ${fmt(real)}`);
+  else if (feedLen) parts.push(`Länge laut Feed: ${fmt(feedLen)} (die tatsächliche Länge steht nach dem ersten Laden hier)`);
+  if (p.prev && p.prev !== real) parts.push(`beim vorherigen Laden: ${fmt(p.prev)}`);
+  return parts.join(' · ');
+}
 function epRow(e, showPodcast = true) {
   const p = progress[e.key] || {};
   const dur = p.dur || e.dur || 0;
@@ -294,6 +318,13 @@ function epRow(e, showPodcast = true) {
       <div class="sub">${showPodcast ? esc(e.podcast) + ' · ' : ''}${fmtDate(e.date)}${left ? ' · ' + left : ''}</div>
       ${pct ? `<div class="bar"><i style="width:${pct}%"></i></div>` : ''}
       <div class="desc">${esc(e.desc)}</div>
+      <div class="more">
+        <div class="small muted">${esc(lengthInfo(e, p))}</div>
+        <div class="row">
+          <button class="btn" data-act="toggleDone">${p.done ? 'Als ungehört markieren' : 'Als gehört markieren'}</button>
+          <button class="btn" data-act="reset">Zurücksetzen &amp; neu laden</button>
+        </div>
+      </div>
     </div>
     <div class="acts">
       <button class="icon-btn" data-act="play" aria-label="Abspielen">▶</button>
@@ -385,15 +416,20 @@ function go(name, extra = {}) { view = { name, ...extra }; render(); window.scro
 const audio = $('#audio');
 let lastSave = 0, seeking = false, sleepTimer = null;
 
+function withBust(u) {
+  try { const x = new URL(u); x.searchParams.set('_pc', Date.now()); return x.toString(); } catch { return u; }
+}
 function setCurrent(ep) { current = ep; store.set('pc_current', ep); episodes.set(ep.key, ep); }
 function loadSrc(ep, autoplay) {
   setCurrent(ep);
-  audio.src = ep.audio;
-  audio.playbackRate = settings.speed;
   const p = progress[ep.key];
+  const bust = !!(p && p.fresh);
+  if (bust) { progress[ep.key] = { ...p }; delete progress[ep.key].fresh; saveProgress(); }
+  audio.src = bust ? withBust(ep.audio) : ep.audio;
+  audio.playbackRate = settings.speed;
   audio.addEventListener('loadedmetadata', () => {
     if (p && !p.done && p.pos > 5) audio.currentTime = Math.max(0, p.pos - 2);
-    if (audio.duration && isFinite(audio.duration)) { progress[ep.key] = { ...(progress[ep.key] || {}), dur: Math.floor(audio.duration) }; }
+    if (audio.duration && isFinite(audio.duration)) { progress[ep.key] = { ...(progress[ep.key] || {}), dur: Math.floor(audio.duration) }; saveProgress(); }
     updateUI();
   }, { once: true });
   if (p && p.done) { progress[ep.key] = { ...p, done: false, pos: 0 }; saveProgress(); }
@@ -413,7 +449,7 @@ function saveNow() {
   const dur = audio.duration && isFinite(audio.duration) ? Math.floor(audio.duration) : (progress[current.key] || {}).dur || current.dur || 0;
   const pos = Math.floor(audio.currentTime || 0);
   const prev = progress[current.key] || {};
-  progress[current.key] = { pos, dur, done: prev.done || (dur > 0 && dur - pos < 20) };
+  progress[current.key] = { ...prev, pos, dur, done: prev.done || (dur > 0 && dur - pos < 20) };
   saveProgress(); lastSave = Date.now();
 }
 function playNextInQueue() {
@@ -429,9 +465,12 @@ function enqueue(ep) {
 }
 function renderQueue() {
   $('#queueBox').innerHTML = queue.length
-    ? `<ul>${queue.map(e => `<li class="list-item" data-key="${esc(e.key)}"><img class="cover" src="${esc(e.image || '')}" alt="" onerror="this.style.visibility='hidden'">
-        <div class="meta"><div class="title">${esc(e.title)}</div><div class="muted small">${esc(e.podcast || '')}</div></div>
-        <button class="icon-btn" data-act="qplay">▶</button><button class="icon-btn" data-act="qdel">✕</button></li>`).join('')}</ul>`
+    ? `<ul id="qlist">${queue.map(e => `<li class="qrow" data-key="${esc(e.key)}">
+        <button class="handle" aria-label="Zum Verschieben ziehen" title="Zum Verschieben ziehen">≡</button>
+        <div class="meta"><div class="title">${esc(e.title)}</div><div class="muted small">${esc(e.podcast || '')}${e.date ? ' · ' + fmtDate(e.date) : ''}</div></div>
+        <button class="icon-btn sm" data-act="qtop" aria-label="Als Nächstes abspielen">⤒</button>
+        <button class="icon-btn sm" data-act="qplay" aria-label="Jetzt abspielen">▶</button>
+        <button class="icon-btn sm" data-act="qdel" aria-label="Entfernen">✕</button></li>`).join('')}</ul>`
     : '<div class="muted small" style="text-align:center">Leer – es läuft nichts automatisch weiter.</div>';
 }
 function updateUI() {
@@ -467,7 +506,17 @@ audio.addEventListener('ended', () => {
   if (current) { progress[current.key] = { ...(progress[current.key] || {}), pos: 0, done: true }; saveProgress(); }
   if (settings.queueAuto && queue.length) playNextInQueue(); else { render(); updateUI(); }
 });
-audio.addEventListener('error', () => { if (current) toast('Audio konnte nicht geladen werden'); });
+audio.addEventListener('error', () => {
+  if (!current) return;
+  if (audio.src.includes('_pc=')) {            // frisches Laden per Zusatzparameter hat der Server abgelehnt -> normal laden
+    const wasPlaying = !audio.paused;
+    audio.src = current.audio;
+    if (wasPlaying) audio.play().catch(() => {});
+    toast('Frisches Laden nicht möglich, lade normal');
+    return;
+  }
+  toast('Audio konnte nicht geladen werden');
+});
 window.addEventListener('pagehide', saveNow);
 document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
 
@@ -505,6 +554,23 @@ document.addEventListener('click', e => {
     case 'subRes': { const r = searchResults[Number(b.dataset.i)]; if (r) subscribe(r.feedUrl).then(() => { const rs = $('#results'); if (rs && view.name === 'search') rs.innerHTML = searchResultsHtml(); }); break; }
     case 'qplay': { const ep = epOf(b); if (ep) { queue = queue.filter(q => q.key !== ep.key); saveQueue(); saveNow(); loadSrc(ep, true); renderQueue(); } break; }
     case 'qdel': { const ep = epOf(b); if (ep) { queue = queue.filter(q => q.key !== ep.key); saveQueue(); renderQueue(); render(); } break; }
+    case 'qtop': { const ep = epOf(b); if (ep) { queue = [ep, ...queue.filter(q => q.key !== ep.key)]; saveQueue(); renderQueue(); toast('Läuft als Nächstes'); } break; }
+    case 'qsort': queue.sort((a, c) => (a.date || 0) - (c.date || 0)); saveQueue(); renderQueue(); toast('Nach Erscheinungsdatum sortiert, älteste zuerst'); break;
+    case 'toggleDone': {
+      const ep = epOf(b); if (!ep) break;
+      const p = progress[ep.key] || {};
+      progress[ep.key] = { ...p, done: !p.done };
+      saveProgress(); render(); break;
+    }
+    case 'reset': {
+      const ep = epOf(b); if (!ep) break;
+      const old = progress[ep.key] || {};
+      progress[ep.key] = { pos: 0, dur: 0, done: false, prev: old.dur || old.prev || 0, fresh: true };
+      saveProgress();
+      if (current && current.key === ep.key) { audio.pause(); loadSrc(current, false); }
+      render(); toast('Zurückgesetzt – beim nächsten Abspielen wird die Folge frisch geladen');
+      break;
+    }
     case 'closeSheet': $('#sheet').hidden = true; break;
     case 'export': {
       const data = JSON.stringify({ v: 1, subs, progress, queue, settings }, null, 1);
@@ -529,6 +595,44 @@ document.addEventListener('change', e => {
   } else if (t.dataset && t.dataset.set === 'queueAuto') { settings.queueAuto = t.checked; saveSettings(); }
   else if (t.dataset && t.dataset.set === 'proxy') { settings.proxy = t.value.trim(); saveSettings(); toast('Gespeichert'); }
 });
+
+/* ============ Warteschlange: Umsortieren per Ziehen ============ */
+let drag = null;
+document.addEventListener('pointerdown', e => {
+  const h = e.target.closest && e.target.closest('.handle');
+  const row = h && h.closest('.qrow');
+  if (!row) return;
+  e.preventDefault();
+  try { h.setPointerCapture(e.pointerId); } catch {}
+  drag = { row, ul: row.parentElement, startY: e.clientY };
+  row.classList.add('dragging');
+});
+document.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const { row, ul } = drag;
+  row.style.transform = `translateY(${e.clientY - drag.startY}px)`;
+  const r = row.getBoundingClientRect();
+  const mid = r.top + r.height / 2;
+  const before = [...ul.children].filter(x => x !== row).find(s => { const q = s.getBoundingClientRect(); return mid < q.top + q.height / 2; }) || null;
+  if (before !== row.nextElementSibling) {
+    const oldTop = row.getBoundingClientRect().top;
+    ul.insertBefore(row, before);
+    row.style.transform = 'none';
+    const dy = oldTop - row.getBoundingClientRect().top;   // Zeile bleibt unter dem Finger
+    drag.startY = e.clientY - dy;
+    row.style.transform = `translateY(${dy}px)`;
+  }
+});
+function endDrag() {
+  if (!drag) return;
+  const { row, ul } = drag; drag = null;
+  row.classList.remove('dragging'); row.style.transform = '';
+  const order = [...ul.children].map(li => li.dataset.key);
+  queue = order.map(k => queue.find(q => q.key === k)).filter(Boolean);
+  saveQueue(); renderQueue(); render();
+}
+document.addEventListener('pointerup', endDrag);
+document.addEventListener('pointercancel', endDrag);
 
 /* ============ Start ============ */
 loadCaches();
